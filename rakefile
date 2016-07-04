@@ -1,0 +1,27 @@
+# Installs all git extensions
+# By default installs to /usr/local/bin but this location can be overridden
+# with the GIT_CORTO_PREFIX environment variable e.g.
+#
+# ```
+# GIT_CORTO_PREFIX="$HOME/.git-extensions" rake install
+# ```
+
+# Extensions to remove in case they disappear in a subsequent version
+old_extensions = []
+
+def prefix
+  ENV["GIT_CORTO_PREFIX"] || "/usr/local/bin"
+end
+
+task :install do
+  FileList.new("git-*").each do |f|
+    sh "cp -p #{f} #{prefix}/#{f}"
+  end
+end
+
+
+task :uninstall do
+  (old_extensions + FileList.new("git-*")).each do |f|
+    sh "rm #{prefix}/#{f}"
+  end
+end

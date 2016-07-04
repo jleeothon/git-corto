@@ -1,0 +1,148 @@
+#!/usr/bin/ruby
+
+# git vstatus - git verbose status
+
+require 'optparse'
+require 'rake'
+
+
+###################
+# Utilities
+###################
+
+module Enumerable
+  def max_by_or_default default, n = nil, &b
+    if self.empty?
+      default
+    elsif n.nil?
+      self.max_by &b
+    else
+      self.max_by n, &b
+    end
+  end
+end
+
+def print_with_padding s, max_length, opts, key
+  if opts.delete(key)
+    if opts.empty?
+      print s
+    else
+      print s.ljust(max_length + 5)
+    end
+  end
+end
+
+###################
+# Options
+###################
+
+options = {}
+
+OptionParser.new do |opts|
+  opts.banner = "Usage: git vstatus [options]"
+
+  opts.on("-l", "--link", "Shows the commit in a GitHub-style link") do
+    options[:link] = true
+  end
+
+  opts.on("-n", "--name", "Shows the name of the repository directory") do
+    options[:name] = true
+  end
+
+  opts.on("-r", "--remote", "Shows the repository's remote") do
+    options[:remote] = true
+  end
+
+  opts.on("-s", "--hash", "Shows the current head's hash") do
+    options[:hash] = true
+  end
+
+  opts.on("-b", "--branch", "Shows the current branch's name") do
+    options[:branch] = true
+  end
+
+  opts.on("-h", "Prints this help") do
+    puts opts
+    exit 0
+  end
+
+end.parse!
+
+if options.empty?
+  options[:remote] = true
+  options[:hash] = true
+end
+
+###################
+# Mapping
+###################
+
+git_dirs = Rake::FileList.new("**/.git/config").map do |git_config|
+  git_config.pathmap("%d")
+end.to_a
+
+names = if options[:name]
+  git_dirs.map do |git_dir|
+    git_dir.pathmap("%d")
+  end
+else
+  []
+end
+
+links = if options[:link]
+  git_dirs.map do |git_dir|
+    remote = `git --git-dir #{git_dir} config --get remote.origin.url`.strip
+    remote = remote.empty?? git_dir : remote
+    hash = `git --git-dir #{git_dir} rev-parse --verify --quiet --short HEAD`.strip
+    hash = hash.empty?? "?" : hash
+    "#{remote}@#{hash}"
+  end
+else
+  []
+end
+
+remotes = git_dirs.map do |git_dir|
+  remote = `git --git-dir #{git_dir} config --get remote.origin.url`.strip
+  if not remote.empty? then remote else git_dir end
+end
+
+hashes = if options[:hash]
+  git_dirs.map do |git_dir|
+    hash = `git --git-dir #{git_dir} rev-parse --verify --quiet --short HEAD`.strip
+    if not hash.empty? then hash else "?" end
+  end
+else
+  []
+end
+
+branches = if options[:branch]
+  git_dirs.map do |git_dir|
+    branch = `git --git-dir #{git_dir} rev-parse --verify --quiet --abbrev-ref HEAD`.strip
+    if not branch.empty? then branch else "?" end
+  end
+else
+  []
+end
+
+longest_name = (names.max_by_or_default("") { |i| i.length }).length
+longest_link = (links.max_by_or_default("") { |i| i.length }).length
+longest_remote = (remotes.max_by_or_default("") { |i| i.length }).length
+longest_hash = (hashes.max_by_or_default("") { |i| i.length }).length
+longest_branch = (branches.max_by_or_default("") { |i| i.length }).length
+
+###################
+# Print
+###################
+
+git_dirs.zip(names, links, remotes, hashes, branches) do |g, n, l, r, h, b|
+  o = options.clone
+
+  print_with_padding n, longest_name, o, :name
+  print_with_padding l, longest_link, o, :link
+  print_with_padding r, longest_remote, o, :remote
+  print_with_padding h, longest_hash, o, :hash
+  print_with_padding b, longest_branch, o, :branch
+
+  print "\n"
+  STDOUT.flush
+end
