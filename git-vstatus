@@ -92,10 +92,11 @@ end
 links = if options[:link]
   git_dirs.map do |git_dir|
     remote = `git --git-dir #{git_dir} config --get remote.origin.url`.strip
-    remote = remote.empty?? git_dir : remote
+    remote = remote.empty?? "(unknown remote) #{git_dir}" : remote
+    repo = remote.split("/").slice(-2..-1).join("/")
     hash = `git --git-dir #{git_dir} rev-parse --verify --quiet --short HEAD`.strip
-    hash = hash.empty?? "?" : hash
-    "#{remote}@#{hash}"
+    hash = hash.empty?? "(unknown hash)" : hash
+    "#{repo}@#{hash}"
   end
 else
   []
