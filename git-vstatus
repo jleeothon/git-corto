@@ -83,7 +83,7 @@ end.to_a
 
 names = if options[:name]
   git_dirs.map do |git_dir|
-    git_dir.pathmap("%d")
+    git_dir.pathmap("%d").pathmap("%f")
   end
 else
   []
