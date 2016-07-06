@@ -69,7 +69,7 @@ OptionParser.new do |opts|
 end.parse!
 
 if options.empty?
-  options[:remote] = true
+  options[:name] = true
   options[:hash] = true
 end
 
